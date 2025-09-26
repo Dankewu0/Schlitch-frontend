@@ -1,0 +1,8 @@
+// styles/main.scss
+$primary-color: #0070f3;
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: lighten($primary-color, 40%);
+}
