@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
+import Link from "next/link";
 
 const brands = [
     { id: 1, name: 'amd', image: '/brands/amd.png', lightImage: '/brands/amd_light.png' },
@@ -37,23 +38,24 @@ export default function BrandList() {
                     gap-4 sm:gap-6
                 ">
                     {brands.map((brand) => (
-                        <div
-                            key={brand.id}
-                            className="
+                        <Link href="Balbesik" key={brand.id}>
+                            <div
+                                className="
                                 w-28 sm:w-32 md:w-36 h-20 sm:h-24 md:h-28
                                 bg-white border-2 border-zinc-100 dark:border-gray-800 dark:bg-gray-900
                                 rounded-lg flex items-center justify-center
                                 transition-colors cursor-pointer
                             "
-                        >
-                            <Image
-                                src={isDark ? brand.lightImage : brand.image}
-                                width={100}
-                                height={40}
-                                alt={brand.name}
-                                className="object-contain"
-                            />
-                        </div>
+                            >
+                                <Image
+                                    src={isDark ? brand.lightImage : brand.image}
+                                    width={100}
+                                    height={40}
+                                    alt={brand.name}
+                                    className="object-contain"
+                                />
+                            </div>
+                        </Link>
                     ))}
                 </div>
             </div>
