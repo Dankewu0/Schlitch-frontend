@@ -1,14 +1,18 @@
-import BrandList from "@/app/_components/BrandList";
-import HomeCard from "@/app/_components/HomeCardSection";
+import BrandList from "@/app/_components/Brands/BrandList";
+import HomeCard from "@/app/_components/Home/HomeCardSection";
 import {Suspense} from "react";
-import HomeCardSkeleton from "@/app/_components/HomeCardSectionSkeleton";
+import HomeCardSkeleton from "@/app/_components/Home/HomeCardSectionSkeleton";
+import ReportCard from "@/app/_components/Report/ReportCard";
 export default function Home() {
     return (
-        <div>
+        <div className="bg-white dark:bg-gray-900 min-h-screen">
             <Suspense fallback={<HomeCardSkeleton/>}>
-                <section className="mb-20 mt-15"><HomeCard/></section>
+                <section className=" dark:bg-gray-900"><HomeCard/></section>
             </Suspense>
-            <section className="mt-25"><BrandList /></section>
+            <section className="dark:bg-gray-900"><BrandList /></section>
+            <section className=" dark:bg-gray-900">
+               <ReportCard/>
+            </section>
         </div>
         )
 }
