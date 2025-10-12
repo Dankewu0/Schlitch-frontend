@@ -63,6 +63,39 @@ export default function Catalogue() {
                     Акссесуары
                 </Link>
             </div>
+            <div className="flex bg-violet-200 dark:bg-violet-600 p-4 flex-col">
+                <h1 className="text-3xl">Бытовая техника</h1>
+                <Link href="#" className="text-xl p-2" onClick={() => handleRedirect("pc-builds")}>
+                    Встраиваемая техника
+                </Link>
+                <Link href="#" className="text-xl p-1" onClick={() => handleRedirect("laptops")}>
+                    Техника для дома
+                </Link>
+                <Link href="#" className="text-xl p-1" onClick={() => handleRedirect("peripherals")}>
+                    Техника для кухни
+                </Link>
+            </div>
+            <div className="flex bg-violet-200 dark:bg-violet-600 p-4 flex-col">
+                <h1 className="text-3xl">Комплектующие для пк</h1>
+                <Link href="#" className="text-xl p-2" onClick={() => handleRedirect("pc-builds")}>
+                    Основные комплектующие для пк
+                </Link>
+                <Link href="#" className="text-xl p-1" onClick={() => handleRedirect("laptops")}>
+                    Устройства расширения
+                </Link>
+                <Link href="#" className="text-xl p-1" onClick={() => handleRedirect("peripherals")}>
+                    Моддинг
+                </Link>
+            </div>
+            <div className="flex bg-violet-200 dark:bg-violet-600 p-4 flex-col">
+                <h1 className="text-3xl">Сетевое оборудование</h1>
+                <Link href="#" className="text-xl p-2" onClick={() => handleRedirect("pc-builds")}>
+                    WI-FI Роутеры
+                </Link>
+                <Link href="#" className="text-xl p-1" onClick={() => handleRedirect("laptops")}>
+                    Проффесиональное сетевое оборудование
+                </Link>
+            </div>
         </div>
     );
 }
