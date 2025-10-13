@@ -7,10 +7,11 @@ export default function Footer() {
                     Шлитц
                 </h2>
             </Link>
-            <div className=" p-2 text-sm sm:text-base md:text-lg text-white">
-                Schlitch
-            </div>
-
+            <Link href="/Hehe">
+                <div className=" p-2 text-sm sm:text-base md:text-lg text-white">
+                    Schlitch
+                </div>
+            </Link>
             <div className=" p-2 text-sm sm:text-base md:text-lg text-white">
                 Магазин электроники
             </div>

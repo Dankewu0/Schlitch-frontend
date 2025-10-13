@@ -3,13 +3,17 @@
 import React, { useEffect, useState } from "react"
 import Image from "next/image"
 import { User } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 interface UserData {
     username: string
     registeredAt: string
 }
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
+
 export default function PublicProfilePage({ params }: { params: { slug: string } }) {
+    const router = useRouter()
     const slug = params.slug
     const [userData, setUserData] = useState<UserData | null>(null)
     const [loading, setLoading] = useState(true)
@@ -20,13 +24,17 @@ export default function PublicProfilePage({ params }: { params: { slug: string }
             setLoading(true)
             setError(null)
             try {
-                const res = await fetch(`/api/users/${slug}`)
-                if (!res.ok) throw new Error("Не удалось загрузить профиль")
-                const data = await res.json()
-                setUserData({
-                    username: data.username,
-                    registeredAt: data.registeredAt,
+                const res = await fetch(`${API_BASE_URL}/users?username=${encodeURIComponent(slug)}`, {
+                    method: "GET",
+                    headers: { "Content-Type": "application/json" },
                 })
+                if (!res.ok) throw new Error("Ошибка загрузки пользователей")
+                const user: UserData | null = await res.json()
+                if (!user || !user.username) {
+                    router.push('/UserNotFound')
+                    return
+                }
+                setUserData(user)
             } catch {
                 setError("Не удалось загрузить профиль")
             } finally {
@@ -34,7 +42,7 @@ export default function PublicProfilePage({ params }: { params: { slug: string }
             }
         }
         fetchUser()
-    }, [slug])
+    }, [slug, router])
 
     if (loading) {
         return (

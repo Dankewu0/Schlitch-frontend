@@ -1,59 +1,82 @@
-import { useState, useEffect } from "react";
-import Image from "next/image";
-import { Button } from "@/components/ui/button";
-import { fetchData } from "@/lib/api";
+'use client'
 
-type Product = {
-    id: number;
-    name: string;
-    imageUrl: string;
-    brand?: { name: string };
-};
+import { Heart, ShoppingCart } from "lucide-react"
+import Image from "next/image"
+import Reviews from "@/app/_components/Product/Review";
 
-export default function ProductCard({ productId }: { productId: number }) {
-    const [product, setProduct] = useState<Product | null>(null);
-    const [isAdd, setIsAdd] = useState(false);
+interface Product {
+    id: number
+    name: string
+    price: number
+    description: string
+    images?: { url: string }[]
+    brand?: { name: string }
+}
 
-    useEffect(() => {
-        fetchData(`products/${productId}`)
-            .then((data) => setProduct(data))
-            .catch((err) => console.log(err));
-    }, [productId]);
+interface ProductCardProps {
+    product: Product
+    userId: number | null
+    inCart: boolean
+    inWishlist: boolean
+}
 
-    const AddProduct = () => {
-        if (!product) return;
-        fetchData("carts", {
-            method: "POST",
-            body: JSON.stringify({
-                productId: product.id,
-                quantity: 1,
-            }),
-        })
-            .then(() => setIsAdd(true))
-            .catch((err) => console.log(err));
-    };
+export default function ProductCard({
+                                        product,
+                                        userId,
+                                        inCart,
+                                        inWishlist,
+                                    }: ProductCardProps) {
+    const handleAddToCart = () => {
+        if (!userId) return
+        console.log(`Добавляем продукт ${product.id} в корзину пользователя ${userId}`)
+    }
 
-    if (!product) return <div>Загрузка...</div>;
+    const handleAddToWishlist = () => {
+        if (!userId) return
+        console.log(`Добавляем продукт ${product.id} в wishlist пользователя ${userId}`)
+    }
 
     return (
-        <div className="bg-gray-100 w-300 h-250">
-            <section className="w-[300px] h-[100px] relative">
-                <Image
-                    src={product.imageUrl}
-                    alt={product.name}
-                    fill
-                    style={{ objectFit: "cover" }}
-                />
-            </section>
-            <section>
-                <h1 className="BRAND-NAME">{product.brand?.name}</h1>
-                <h2 className="PRODUCT-NAME">{product.name}</h2>
-            </section>
-            <section>
-                <Button onClick={AddProduct}>
-                    {isAdd ? "Добавлено" : "Добавить в корзину"}
-                </Button>
-            </section>
+        <div className="bg-violet-600 rounded-2xl overflow-hidden shadow-md hover:shadow-lg transition-all">
+            <div className="p-4 flex flex-col gap-3">
+                <div
+                    className="flex justify-end cursor-pointer"
+                    onClick={handleAddToWishlist}
+                >
+                    <Heart className={`w-5 h-5 ${inWishlist ? "text-violet-600" : "text-white"}`} />
+                </div>
+
+                <div className="aspect-square rounded-xl overflow-hidden bg-violet-100 flex items-center justify-center">
+                    {product.images && product.images.length > 0 ? (
+                        <Image
+                            src={product.images[0].url}
+                            alt={product.name}
+                            width={200}
+                            height={200}
+                            className="object-cover w-full h-full"
+                        />
+                    ) : (
+                        <span className="text-gray-400 text-sm">Фото отсутствует</span>
+                    )}
+                </div>
+
+                <div className="text-center bg-white text-violet-600 shadow-sm rounded-md p-2">
+                    <h3 className="text-lg font-semibold truncate">{product.name}</h3>
+                    <p className="text-sm line-clamp-2">{product.description}</p>
+                    <span className="text-violet-600 font-bold">{product.price} ₽</span>
+                </div>
+
+                <div
+                    className="mt-2 flex justify-center cursor-pointer"
+                    onClick={handleAddToCart}
+                >
+                    <ShoppingCart className={`w-5 h-5 ${inCart ? "text-violet-600" : "text-white"}`} />
+                </div>
+            </div>
+
+            <div className="mt-4">
+                <Reviews productId={product.id} />
+            </div>
         </div>
-    );
+    )
 }

@@ -1,10 +1,31 @@
 'use client'
 
-import React, { useState } from "react"
+import React, { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { fetchData } from "@/lib/api"
 import { User, Mail, Key, Loader2 } from "lucide-react"
 import Image from "next/image"
+import Link from "next/link"
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
+
+interface MessageState {
+    text: string
+    isError: boolean
+}
+
+interface RegisterResponse {
+    success: boolean
+    message?: string
+    user?: { name: string }
+    errors?: Record<string, string[]>
+}
+
+function getCookie(name: string) {
+    const value = `; ${document.cookie}`
+    const parts = value.split(`; ${name}=`)
+    if (parts.length === 2) return parts.pop()?.split(";").shift()
+    return undefined
+}
 
 export default function Registration() {
     const router = useRouter()
@@ -12,34 +33,63 @@ export default function Registration() {
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
     const [loading, setLoading] = useState(false)
-    const [error, setError] = useState<string | null>(null)
-    const [success, setSuccess] = useState<string | null>(null)
+    const [message, setMessage] = useState<MessageState | null>(null)
 
-    const registerHandler = async (e: React.FormEvent) => {
+    const clearMessage = () => setTimeout(() => setMessage(null), 5000)
+
+    const registerHandler = useCallback(async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
-        setError(null)
-        setSuccess(null)
+        setMessage(null)
 
         try {
-            const res = await fetchData("/users/register", {
+            await fetch(`${API_BASE_URL}/sanctum/csrf-cookie`, {
+                credentials: "include",
+            })
+
+            const xsrfToken = getCookie("XSRF-TOKEN")
+            if (!xsrfToken) throw new Error("CSRF токен не получен")
+
+            const res = await fetch(`${API_BASE_URL}/register`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                    "X-XSRF-TOKEN": decodeURIComponent(xsrfToken),
+                },
                 body: JSON.stringify({ username, email, password }),
             })
 
-            if (res.success) {
-                setSuccess(`Аккаунт создан! Добро пожаловать, ${res.user.name}.`)
+            const data: RegisterResponse = await res.json().catch(() => ({
+                success: false,
+                message: "Сервер вернул не JSON",
+            }))
+
+            if (res.ok && data.success) {
+                setMessage({
+                    text: `Аккаунт создан! Добро пожаловать, ${data.user?.name || username}.`,
+                    isError: false,
+                })
                 setTimeout(() => router.push("/"), 1500)
             } else {
-                setError(res.message || "Ошибка регистрации")
+                const errorText =
+                    data.message ||
+                    (data.errors ? Object.values(data.errors).flat().join(", ") : "Неизвестная ошибка сервера.")
+                setMessage({ text: errorText, isError: true })
+                clearMessage()
             }
         } catch (err) {
-            setError("Ошибка связи с сервером")
+            console.error("Ошибка сети:", err)
+            setMessage({
+                text: "Не удалось связаться с сервером. Проверьте API.",
+                isError: true,
+            })
+            clearMessage()
         } finally {
             setLoading(false)
         }
-    }
+    }, [username, email, password, router])
 
     return (
         <div className="min-h-screen flex items-center justify-center font-sans px-4">
@@ -58,14 +108,13 @@ export default function Registration() {
                     <p className="text-gray-600 mt-2 text-lg">Создайте новый аккаунт</p>
                 </div>
 
-                {error && (
-                    <div className="bg-red-50 text-red-600 px-4 py-2 mb-4 rounded-lg border border-violet-200">
-                        {error}
-                    </div>
-                )}
-                {success && (
-                    <div className="bg-green-50 text-green-600 px-4 py-2 mb-4 rounded-lg border border-violet-200">
-                        {success}
+                {message && (
+                    <div
+                        className={`px-4 py-2 mb-4 rounded-lg border ${
+                            message.isError ? "bg-red-50 text-red-600 border-violet-200" : "bg-green-50 text-green-600 border-violet-200"
+                        }`}
+                    >
+                        {message.text}
                     </div>
                 )}
 
@@ -136,7 +185,7 @@ export default function Registration() {
 
                 <div className="mt-5 text-center text-sm">
                     <span className="text-gray-600">Уже есть аккаунт? </span>
-                    <a href="/Authorization" className="text-violet-200 font-medium">Войти</a>
+                    <Link href="/Authorization" className="text-violet-200 font-medium">Войти</Link>
                 </div>
             </div>
         </div>

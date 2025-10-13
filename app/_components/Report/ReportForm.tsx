@@ -13,7 +13,7 @@ export default function ReportForm() {
             description: formData.get("description"),
         };
         try {
-            const res = await fetch("/report", {
+            const res = await fetch("/ticket", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(data),
@@ -28,7 +28,7 @@ export default function ReportForm() {
 
     return (
         <div className="flex flex-col gap-8 w-full px-4 py-6 items-center">
-            <div className="w-full max-w-3xl text-center bg-zinc-100 dark:bg-zinc-900 p-6 rounded-lg">
+            <div className="w-full max-w-3xl text-center bg-violet-200 dark:bg-violet-600 p-6 rounded-lg">
                 <h1 className="text-3xl font-semibold mb-2">Форма отправки сообщений об ошибке</h1>
                 <h2 className="text-2xl font-bold mb-4 text-red-800">Важно!</h2>
                 <p className="mb-1">В форме нужно описывать все подробно</p>
@@ -42,23 +42,23 @@ export default function ReportForm() {
                 <span className="text-2xl font-bold mb-4">Форма отправки</span>
                 <form
                     onSubmit={handleSubmit}
-                    className="flex flex-col gap-4 w-full p-6 border-2 border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800"
+                    className="flex flex-col gap-4 w-full p-6 border-2 border-violet-300 rounded-lg bg-white dark:bg-violet-600"
                 >
                     <input
                         name="title"
                         placeholder="Краткое описание"
                         required
-                        className="w-full py-3 px-4 border border-zinc-300 dark:border-zinc-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-400 dark:focus:ring-lime-300"
+                        className="w-full py-3 px-4 border border-violet-300 dark:border-violet-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400 dark:focus:ring-violet-300"
                     />
                     <textarea
                         name="description"
                         placeholder="Подробное описание"
                         required
-                        className="w-full py-3 px-4 border border-zinc-300 dark:border-zinc-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-400 dark:focus:ring-lime-300 resize-none h-40"
+                        className="w-full py-3 px-4 border border-violet-300 dark:border-violet-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400 dark:focus:ring-violet-300 resize-none h-40"
                     />
                     <button
                         type="submit"
-                        className="w-full py-3 bg-lime-500 text-white font-semibold rounded-lg hover:bg-lime-600 transition-colors"
+                        className="w-full py-3 bg-violet-600 text-white font-semibold rounded-lg hover:bg-violet-700 transition-colors"
                     >
                         Отправить репорт
                     </button>

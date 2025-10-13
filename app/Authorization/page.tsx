@@ -1,45 +1,92 @@
 'use client'
 
-import React, { useState } from "react"
+import React, { useState, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { fetchData } from "@/lib/api"
-import { User, RectangleEllipsis, Loader2 } from "lucide-react"
+import { User, Key, Loader2 } from "lucide-react"
 import Image from "next/image"
+import Link from "next/link"
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
+
+interface MessageState {
+    text: string
+    isError: boolean
+}
+
+interface LoginResponse {
+    success: boolean
+    message?: string
+    user?: { name: string }
+}
 
 export default function Authorization() {
     const router = useRouter()
     const [username, setUsername] = useState("")
     const [password, setPassword] = useState("")
     const [loading, setLoading] = useState(false)
-    const [error, setError] = useState<string | null>(null)
-    const [success, setSuccess] = useState<string | null>(null)
+    const [message, setMessage] = useState<MessageState | null>(null)
+    const [user, setUser] = useState<LoginResponse['user'] | null>(null)
 
-    const loginHandler = async (e: React.FormEvent) => {
+    const clearMessage = () => setTimeout(() => setMessage(null), 5000)
+
+    const fetchMe = useCallback(async () => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/user`, {
+                credentials: "include",
+            })
+            if (!res.ok) return
+            const data = await res.json()
+            setUser(data)
+        } catch (err) {}
+    }, [])
+
+    useEffect(() => {
+        fetchMe()
+    }, [fetchMe])
+
+    const loginHandler = useCallback(async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
-        setError(null)
-        setSuccess(null)
-
+        setMessage(null)
         try {
-            const res = await fetchData("/users/login", {
+            await fetch(`${API_BASE_URL}/sanctum/csrf-cookie`, {
+                credentials: "include",
+            })
+            const res = await fetch(`${API_BASE_URL}/login`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                },
                 body: JSON.stringify({ username, password }),
             })
-
-            if (res.success) {
-                localStorage.setItem("auth_token", res.token)
-                setSuccess(`Добро пожаловать, ${res.user.name}! Переадресация...`)
+            const data: LoginResponse = await res.json().catch(() => ({
+                success: false,
+                message: "Сервер вернул не JSON",
+            }))
+            if (res.ok && data.success) {
+                setMessage({
+                    text: `Добро пожаловать, ${data.user?.name || username}!`,
+                    isError: false,
+                })
                 setTimeout(() => router.push("/"), 1500)
             } else {
-                setError(res.message || "Неверный логин или пароль")
+                const errorText =
+                    data.message || "Неверные данные или ошибка сервера."
+                setMessage({ text: errorText, isError: true })
+                clearMessage()
             }
         } catch (err) {
-            setError("Ошибка связи с сервером")
+            setMessage({
+                text: "Не удалось связаться с сервером. Проверьте API.",
+                isError: true,
+            })
+            clearMessage()
         } finally {
             setLoading(false)
         }
-    }
+    }, [username, password, router])
 
     return (
         <div className="min-h-screen flex items-center justify-center font-sans px-4">
@@ -53,19 +100,20 @@ export default function Authorization() {
                             alt="Вентилятор"
                             className="object-contain pr-3"
                         />
-                        Система авторизации
+                        Авторизация
                     </h2>
                     <p className="text-gray-600 mt-2 text-lg">Введите ваши данные для входа</p>
                 </div>
 
-                {error && (
-                    <div className="bg-red-50 text-red-600 px-4 py-2 mb-4 rounded-lg border border-violet-200">
-                        {error}
-                    </div>
-                )}
-                {success && (
-                    <div className="bg-green-50 text-green-600 px-4 py-2 mb-4 rounded-lg border border-violet-200">
-                        {success}
+                {message && (
+                    <div
+                        className={`px-4 py-2 mb-4 rounded-lg border ${
+                            message.isError
+                                ? "bg-red-50 text-red-600 border-violet-200"
+                                : "bg-green-50 text-green-600 border-violet-200"
+                        }`}
+                    >
+                        {message.text}
                     </div>
                 )}
 
@@ -93,7 +141,7 @@ export default function Authorization() {
                             Пароль
                         </label>
                         <div className="flex items-center border border-violet-200 rounded-lg overflow-hidden bg-white">
-                            <RectangleEllipsis className="ml-3 text-violet-200 w-5 h-5" />
+                            <Key className="ml-3 text-violet-200 w-5 h-5" />
                             <input
                                 id="password"
                                 type="password"
@@ -118,7 +166,9 @@ export default function Authorization() {
 
                 <div className="mt-5 text-center text-sm">
                     <span className="text-gray-600">Нет аккаунта? </span>
-                    <a href="/Registration" className="text-violet-200 font-medium">Зарегистрируйтесь</a>
+                    <Link href="/Registration" className="text-violet-200 font-medium">
+                        Зарегистрируйтесь
+                    </Link>
                 </div>
             </div>
         </div>

@@ -6,11 +6,21 @@ import { User } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { fetchData } from "@/lib/api"
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
+
 interface Order {
     id: string
     item: string
     date: string
     status: string
+}
+
+interface ProfileApiResponse {
+    username: string
+    email: string
+    orders: Order[]
+    lastLogin: string
+    status?: string
 }
 
 interface ProfileData {
@@ -30,38 +40,37 @@ export default function ProfileLayout() {
     const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
-        const token = localStorage.getItem("auth_token")
-        if (!token) {
-            router.push("/Authorization")
-            return
-        }
-
         async function loadUser() {
             setLoading(true)
             setError(null)
             try {
-                const res = await fetchData("/users/me", {
+                const res = await fetch(`${API_BASE_URL}/me`, {
                     method: "GET",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${token}`
-                    }
-                })
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                });
 
-                if (!res.username) {
-                    throw new Error("Не удалось загрузить данные профиля")
+
+                if (!res.ok) {
+                    throw new Error(`Ошибка ${res.status}: Не удалось загрузить данные профиля`)
                 }
 
+                const data: ProfileApiResponse = await res.json()
+
                 setUserData({
-                    username: res.username,
-                    email: res.email,
-                    totalOrders: res.orders?.length ?? 0,
-                    lastLogin: res.lastLogin,
-                    status: res.status ?? "Активен",
-                    orders: res.orders ?? []
+                    username: data.username,
+                    email: data.email,
+                    totalOrders: data.orders?.length ?? 0,
+                    lastLogin: data.lastLogin,
+                    status: data.status ?? "Активен",
+                    orders: data.orders ?? []
                 })
-            } catch (err: any) {
-                setError(err.message || "Ошибка при загрузке профиля")
+            } catch (err: unknown) {
+                if (err instanceof Error) {
+                    setError(err.message)
+                } else {
+                    setError("Ошибка при загрузке профиля")
+                }
             } finally {
                 setLoading(false)
             }
@@ -90,7 +99,7 @@ export default function ProfileLayout() {
         <div className="flex-shrink-0 w-64 bg-violet-200 rounded-2xl p-6 flex flex-col gap-8">
             <div className="flex flex-col items-center">
                 <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-white shadow">
-                    <User/>
+                    <User />
                 </div>
                 <h2 className="mt-3 text-xl font-bold text-gray-900 flex items-center gap-2">
                     {userData.username}
@@ -162,10 +171,19 @@ export default function ProfileLayout() {
                 </div>
                 <div className="flex gap-4 mt-4">
                     <button type="button" className="bg-violet-300 text-white py-2 px-6 rounded-lg">Сменить пароль</button>
-                    <button type="button" className="bg-red-200 text-white py-2 px-6 rounded-lg" onClick={() => {
-                        localStorage.removeItem("auth_token")
-                        router.push("/Authorization")
-                    }}>Выйти</button>
+                    <button
+                        type="button"
+                        className="bg-red-200 text-white py-2 px-6 rounded-lg"
+                        onClick={async () => {
+                            await fetchData("/users/logout", {
+                                method: "POST",
+                                credentials: "include",
+                            })
+                            router.push("/Authorization")
+                        }}
+                    >
+                        Выйти
+                    </button>
                 </div>
             </form>
         </div>

@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Avatar } from "@/components/ui/avatar"
@@ -18,13 +19,46 @@ import ThemeSwitcher from "@/app/_components/ThemeSwitch/ThemeSwitcher"
 import Image from "next/image"
 import { fetchData } from "@/lib/api"
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
+
 export default function Header() {
     const router = useRouter()
-    const isAuthenticated = false // пока флаг авторизации для демонстрации
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
+    const [checkingAuth, setCheckingAuth] = useState<boolean>(true)
+    const [user, setUser] = useState<any>(null)
+
+    interface CategoryResponse {
+        slug: string
+    }
+
+    useEffect(() => {
+        const checkAuth = async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/users/me`, {
+                    credentials: "include",
+                })
+                if (res.ok) {
+                    const data = await res.json()
+                    setUser(data)
+                    setIsAuthenticated(true)
+                } else {
+                    setIsAuthenticated(false)
+                    setUser(null)
+                }
+            } catch (err) {
+                console.error("Ошибка при проверке авторизации:", err)
+                setIsAuthenticated(false)
+                setUser(null)
+            } finally {
+                setCheckingAuth(false)
+            }
+        }
+        checkAuth()
+    }, [])
 
     const handleRedirect = async (slug: string) => {
         try {
-            const data = await fetchData(`/categories/${slug}`)
+            const data = await fetchData<CategoryResponse>(`/categories/${slug}`)
             router.push(`/categories/${data.slug}`)
         } catch (err) {
             console.error("Ошибка редиректа:", err)
@@ -125,22 +159,23 @@ export default function Header() {
 
             <div>
                 <div className="flex flex-row justify-end items-center gap-6 -mt-3">
-                    <Link href="/">
+                    <Link href="WishList">
                         <Heart className="text-violet-200 dark:text-violet-600"/>
                     </Link>
-                    <Link href="/">
+                    <Link href="Cart">
                         <ShoppingCart className="text-violet-200 dark:text-violet-600"/>
                     </Link>
 
-                    {isAuthenticated ? (
-                        <Link href="/Profile">
-                            <Avatar className="bg-violet-200 dark:bg-violet-600"/>
-                        </Link>
-                    ) : (
-
-                        <Button onClick={handleLogin} className="bg-violet-200 dark:bg-violet-600 text-white hover:bg-violet-300 dark:hover:bg-violet-500">
-                            Войти
-                        </Button>
+                    {!checkingAuth && (
+                        isAuthenticated ? (
+                            <Link href="/User">
+                                <Avatar className="bg-violet-200 dark:bg-violet-600"/>
+                            </Link>
+                        ) : (
+                            <Button onClick={handleLogin} className="bg-violet-200 dark:bg-violet-600 text-white hover:bg-violet-300 dark:hover:bg-violet-500">
+                                Войти
+                            </Button>
+                        )
                     )}
                 </div>
             </div>

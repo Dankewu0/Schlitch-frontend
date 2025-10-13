@@ -45,8 +45,8 @@ export default function HomeCard() {
                         />
                     </div>
                     <div className="flex flex-col justify-center space-y-1">
-                        <Link href="/">Товары по акции</Link>
-                        <Link href="/">Уцененные товары</Link>
+                        <Link href="/Discount">Товары по акции</Link>
+                        <Link href="/Discount">Уцененные товары</Link>
                     </div>
                 </div>
             </section>
