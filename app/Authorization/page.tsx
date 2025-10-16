@@ -16,6 +16,7 @@ interface MessageState {
 interface LoginResponse {
     success: boolean
     message?: string
+    token?: string
     user?: { name: string }
 }
 
@@ -48,32 +49,45 @@ export default function Authorization() {
         e.preventDefault()
         setLoading(true)
         setMessage(null)
+
         try {
             await fetch(`${API_BASE_URL}/sanctum/csrf-cookie`, {
                 credentials: "include",
             })
+
+            const xsrfToken = document.cookie
+                .split("; ")
+                .find(row => row.startsWith("XSRF-TOKEN="))
+                ?.split("=")[1]
+
             const res = await fetch(`${API_BASE_URL}/login`, {
                 method: "POST",
                 credentials: "include",
                 headers: {
                     "Content-Type": "application/json",
                     "Accept": "application/json",
+                    "X-XSRF-TOKEN": decodeURIComponent(xsrfToken || ""),
                 },
                 body: JSON.stringify({ username, password }),
             })
+
             const data: LoginResponse = await res.json().catch(() => ({
                 success: false,
                 message: "Сервер вернул не JSON",
             }))
+
             if (res.ok && data.success) {
+                if (data.token) { // если сервер возвращает токен
+                    localStorage.setItem("token", data.token)
+                }
+
                 setMessage({
                     text: `Добро пожаловать, ${data.user?.name || username}!`,
                     isError: false,
                 })
                 setTimeout(() => router.push("/"), 1500)
             } else {
-                const errorText =
-                    data.message || "Неверные данные или ошибка сервера."
+                const errorText = data.message || "Неверные данные или ошибка сервера."
                 setMessage({ text: errorText, isError: true })
                 clearMessage()
             }
@@ -87,6 +101,8 @@ export default function Authorization() {
             setLoading(false)
         }
     }, [username, password, router])
+
+
 
     return (
         <div className="min-h-screen flex items-center justify-center font-sans px-4">

@@ -1,28 +1,51 @@
-'use client';
-import { useState } from "react";
+'use client'
+import { useState } from "react"
 
 export default function ReportForm() {
-    const [status, setStatus] = useState<"success" | "error" | null>(null);
+    const [status, setStatus] = useState<"success" | "error" | null>(null)
+    const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-        e.preventDefault();
-        setStatus(null);
-        const formData = new FormData(e.currentTarget);
+        e.preventDefault()
+        setStatus(null)
+        setErrorMessage(null)
+
+        const formData = new FormData(e.currentTarget)
         const data = {
             title: formData.get("title"),
             description: formData.get("description"),
-        };
+        }
+
         try {
-            const res = await fetch("/ticket", {
+            console.group("📤 Отправка репорта")
+            console.log("➡ URL:", "/tickets")
+            console.log("➡ Данные:", data)
+
+            const res = await fetch("http://localhost:8000/tickets", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(data),
             });
-            if (!res.ok) throw new Error();
-            setStatus("success");
-            e.currentTarget.reset();
-        } catch {
-            setStatus("error");
+
+
+            console.log("⬅ Ответ:", res.status, res.statusText)
+
+            if (!res.ok) {
+                const text = await res.text()
+                console.error("❌ Ошибка ответа сервера:", text || "пусто")
+                throw new Error(`Ошибка ${res.status}: ${res.statusText}`)
+            }
+
+            setStatus("success")
+            e.currentTarget.reset()
+            console.log("✅ Репорт успешно отправлен")
+
+        } catch (err: any) {
+            console.error("🔥 Ошибка при отправке формы:", err)
+            setStatus("error")
+            setErrorMessage(err?.message || "Не удалось отправить запрос. Проверь соединение или попробуй позже.")
+        } finally {
+            console.groupEnd()
         }
     }
 
@@ -31,11 +54,8 @@ export default function ReportForm() {
             <div className="w-full max-w-3xl text-center bg-violet-200 dark:bg-violet-600 p-6 rounded-lg">
                 <h1 className="text-3xl font-semibold mb-2">Форма отправки сообщений об ошибке</h1>
                 <h2 className="text-2xl font-bold mb-4 text-red-800">Важно!</h2>
-                <p className="mb-1">В форме нужно описывать все подробно</p>
-                <p className="mb-1">Как случилась ошибка, когда случилась ошибка</p>
-                <p className="mb-1">В случае если ошибки не было</p>
-                <p className="mb-1">Или форма использована не по назначению</p>
-                <p className="mb-1">Аккаунт получит блокировку</p>
+                <p className="mb-1">Пиши подробно: что, когда и как сломалось.</p>
+                <p className="mb-1">Если форма используется не по назначению — будет бан.</p>
             </div>
 
             <div className="w-full max-w-md flex flex-col items-center">
@@ -62,10 +82,15 @@ export default function ReportForm() {
                     >
                         Отправить репорт
                     </button>
-                    {status === "success" && <p className="text-green-600 text-center py-2">Отправлено</p>}
-                    {status === "error" && <p className="text-red-600 text-center py-2">Ошибка отправления</p>}
+
+                    {status === "success" && (
+                        <p className="text-green-600 text-center py-2">✅ Репорт успешно отправлен</p>
+                    )}
+                    {status === "error" && (
+                        <p className="text-green-600 text-center py-2">✅ Репорт успешно отправлен</p>
+                    )}
                 </form>
             </div>
         </div>
-    );
+    )
 }

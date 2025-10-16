@@ -21,10 +21,9 @@ export default function BrandList() {
     const [isDark, setIsDark] = useState(false);
 
     useEffect(() => {
-        setIsDark(document.documentElement.classList.contains('dark'));
-        const observer = new MutationObserver(() => {
-            setIsDark(document.documentElement.classList.contains('dark'));
-        });
+        const updateTheme = () => setIsDark(document.documentElement.classList.contains('dark'));
+        updateTheme();
+        const observer = new MutationObserver(updateTheme);
         observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
         return () => observer.disconnect();
     }, []);
@@ -37,26 +36,30 @@ export default function BrandList() {
                     sm:grid-flow-row sm:grid-cols-[repeat(auto-fit,minmax(144px,1fr))]
                     gap-4 sm:gap-6
                 ">
-                    {brands.map((brand) => (
-                        <Link href="Balbesik" key={brand.id}>
-                            <div
-                                className="
-                                w-28 sm:w-32 md:w-36 h-20 sm:h-24 md:h-28
-                                bg-white border-2 border-zinc-100 dark:border-gray-800 dark:bg-gray-900
-                                rounded-lg flex items-center justify-center
-                                transition-colors cursor-pointer
-                            "
-                            >
-                                <Image
-                                    src={isDark ? brand.lightImage : brand.image}
-                                    width={100}
-                                    height={40}
-                                    alt={brand.name}
-                                    className="object-contain"
-                                />
-                            </div>
-                        </Link>
-                    ))}
+                    {brands.map((brand) => {
+                        const imgSrc = isDark && brand.lightImage ? brand.lightImage : brand.image;
+                        return (
+                            <Link href="Balbesik" key={brand.id}>
+                                <div
+                                    className="
+                                        w-28 sm:w-32 md:w-36 h-20 sm:h-24 md:h-28
+                                        bg-white border-2 border-zinc-100 dark:border-gray-800 dark:bg-gray-900
+                                        rounded-lg flex items-center justify-center
+                                        transition-colors cursor-pointer
+                                    "
+                                >
+                                    <Image
+                                        src={imgSrc}
+                                        width={100}
+                                        height={40}
+                                        alt={brand.name}
+                                        className="object-contain"
+                                        unoptimized
+                                    />
+                                </div>
+                            </Link>
+                        )
+                    })}
                 </div>
             </div>
         </div>

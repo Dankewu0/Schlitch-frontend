@@ -1,9 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Avatar } from "@/components/ui/avatar"
 import {
     DropdownMenu,
     DropdownMenuTrigger,
@@ -14,41 +13,52 @@ import {
     DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu"
 import Link from "next/link"
-import { ChevronDown, Heart, ShoppingCart } from "lucide-react"
+import { ChevronDown, Heart, ShoppingCart, User, Store } from "lucide-react"
 import ThemeSwitcher from "@/app/_components/ThemeSwitch/ThemeSwitcher"
-import Image from "next/image"
 import { fetchData } from "@/lib/api"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
 
+interface User {
+    id: number
+    username: string
+    email: string
+}
+
+interface CategoryResponse {
+    slug: string
+}
+
+interface CategoryData {
+    products?: unknown[]
+    brands?: unknown[]
+}
+
 export default function Header() {
     const router = useRouter()
+    const [user, setUser] = useState<User | null>(null)
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
     const [checkingAuth, setCheckingAuth] = useState<boolean>(true)
-    const [user, setUser] = useState<any>(null)
-
-    interface CategoryResponse {
-        slug: string
-    }
+    const [cartCount, setCartCount] = useState<number>(0)
+    const [wishlistCount, setWishlistCount] = useState<number>(0)
 
     useEffect(() => {
         const checkAuth = async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/users/me`, {
-                    credentials: "include",
-                })
+                const res = await fetch(`${API_BASE_URL}/user`, { credentials: 'include' })
                 if (res.ok) {
-                    const data = await res.json()
+                    const data: User = await res.json()
                     setUser(data)
                     setIsAuthenticated(true)
+                    await loadCartAndWishlist()
                 } else {
-                    setIsAuthenticated(false)
                     setUser(null)
+                    setIsAuthenticated(false)
                 }
             } catch (err) {
                 console.error("Ошибка при проверке авторизации:", err)
-                setIsAuthenticated(false)
                 setUser(null)
+                setIsAuthenticated(false)
             } finally {
                 setCheckingAuth(false)
             }
@@ -56,31 +66,51 @@ export default function Header() {
         checkAuth()
     }, [])
 
-    const handleRedirect = async (slug: string) => {
+    const loadCartAndWishlist = async () => {
         try {
-            const data = await fetchData<CategoryResponse>(`/categories/${slug}`)
-            router.push(`/categories/${data.slug}`)
+            const [cartRes, wishRes] = await Promise.all([
+                fetch(`${API_BASE_URL}/cart`, { credentials: "include" }),
+                fetch(`${API_BASE_URL}/wish-lists`, { credentials: "include" })
+            ])
+
+            if (cartRes.ok) {
+                const cartData: unknown[] = await cartRes.json()
+                setCartCount(cartData.length)
+            } else {
+                setCartCount(0)
+            }
+
+            if (wishRes.ok) {
+                const wishData: unknown[] = await wishRes.json()
+                setWishlistCount(wishData.length)
+            } else {
+                setWishlistCount(0)
+            }
         } catch (err) {
-            console.error("Ошибка редиректа:", err)
+            console.error("Ошибка загрузки корзины или вишлиста:", err)
+            setCartCount(0)
+            setWishlistCount(0)
         }
     }
 
-    const handleLogin = () => {
-        router.push("/Authorization")
+    const handleRedirect = async (slug?: string) => {
+        if (!slug) return
+        try {
+            const endpoint = `/categories/${encodeURIComponent(slug)}`
+            const data: CategoryData | null = await fetchData<CategoryData>(endpoint)
+            if (data && (data.products || data.brands)) router.push(`/Catalog/${slug}`)
+        } catch (err) {
+            console.error(`🔥 Ошибка запроса категории "${slug}":`, err)
+        }
     }
+
+    const handleLogin = () => router.push("/Authorization")
 
     return (
         <header className="flex font-bold text-black dark:text-zinc-100 items-center flex-row p-2 text-white dark:text-black justify-between flex-shrink-0 dark:bg-gray-900">
             <div className="flex flex-col">
                 <div className="flex items-center gap-4 bg-violet-200 dark:bg-violet-600 rounded-sm ">
                     <div className="flex items-center gap-2">
-                        <Image
-                            src="/Other/GTMan.png"
-                            width={20}
-                            height={10}
-                            alt="Вентилятор"
-                            className="object-contain"
-                        />
                         <Link href="/">
                             <span className="inline-flex items-center h-10 sm:h-11 md:h-12 text-lg sm:text-xl md:text-2xl px-2 font-bold">
                                 Schlitch
@@ -96,11 +126,9 @@ export default function Header() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
                             <DropdownMenuSub>
-                                <DropdownMenuSubTrigger>
-                                    Смартфоны, планшеты
-                                </DropdownMenuSubTrigger>
+                                <DropdownMenuSubTrigger>Смартфоны, планшеты</DropdownMenuSubTrigger>
                                 <DropdownMenuSubContent>
-                                    <DropdownMenuItem onClick={() => handleRedirect('smartphones')}>Смартфоны</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleRedirect("smartphones")}>Смартфоны</DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => handleRedirect('tablets')}>Планшеты</DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => handleRedirect('accessories')}>Аксессуары</DropdownMenuItem>
                                 </DropdownMenuSubContent>
@@ -125,21 +153,21 @@ export default function Header() {
                                 <DropdownMenuSubTrigger>Фототехника</DropdownMenuSubTrigger>
                                 <DropdownMenuSubContent>
                                     <DropdownMenuItem onClick={() => handleRedirect('cameras')}>Фотоаппараты</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleRedirect('photo-accessories')}>Аксессуары</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleRedirect('camera-accessories')}>Аксессуары</DropdownMenuItem>
                                 </DropdownMenuSubContent>
                             </DropdownMenuSub>
                             <DropdownMenuSub>
                                 <DropdownMenuSubTrigger>Бытовая техника</DropdownMenuSubTrigger>
                                 <DropdownMenuSubContent>
-                                    <DropdownMenuItem onClick={() => handleRedirect('home-appliances')}>Встраиваемая техника</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleRedirect('kitchen')}>Техника для кухни</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleRedirect('household')}>Техника для дома</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleRedirect('built-in-appliances')}>Встраиваемая техника</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleRedirect('kitchen-appliances')}>Техника для кухни</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleRedirect('home-appliances')}>Техника для дома</DropdownMenuItem>
                                 </DropdownMenuSubContent>
                             </DropdownMenuSub>
                             <DropdownMenuSub>
                                 <DropdownMenuSubTrigger>Комплектующие для ПК</DropdownMenuSubTrigger>
                                 <DropdownMenuSubContent>
-                                    <DropdownMenuItem onClick={() => handleRedirect('components-main')}>Основные комплектующие</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleRedirect('main-pc-parts')}>Основные комплектующие</DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => handleRedirect('expansion-devices')}>Устройства расширения</DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => handleRedirect('modding')}>Обслуживание и моддинг</DropdownMenuItem>
                                 </DropdownMenuSubContent>
@@ -156,20 +184,38 @@ export default function Header() {
                 </div>
                 <ThemeSwitcher />
             </div>
-
+            <Link href="/OurShops">
+                <div className="flex flex-row justify-end items-center gap-9 -mt-6 relative bg-violet-200 dark:bg-violet-600 p-4 rounded-lg">
+                    <span className="hidden md:inline font-semibold">Наши магазины</span>
+                    <Store className="md:hidden "/>
+                </div>
+            </Link>
             <div>
-                <div className="flex flex-row justify-end items-center gap-6 -mt-3">
-                    <Link href="WishList">
+                <div className="flex flex-row justify-end items-center gap-6 -mt-6 relative">
+                    <Link href="/WishList" className="relative">
                         <Heart className="text-violet-200 dark:text-violet-600"/>
+                        {wishlistCount > 0 && (
+                            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                                {wishlistCount}
+                            </span>
+                        )}
                     </Link>
-                    <Link href="Cart">
+
+                    <Link href="/Cart" className="relative">
                         <ShoppingCart className="text-violet-200 dark:text-violet-600"/>
+                        {cartCount > 0 && (
+                            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                                {cartCount}
+                            </span>
+                        )}
                     </Link>
 
                     {!checkingAuth && (
                         isAuthenticated ? (
                             <Link href="/User">
-                                <Avatar className="bg-violet-200 dark:bg-violet-600"/>
+                                <div className="bg-violet-200 dark:bg-violet-600 p-1 rounded-3xl flex items-center justify-center">
+                                    <User className="text-violet-600 dark:text-violet-800 w-6 h-6"/>
+                                </div>
                             </Link>
                         ) : (
                             <Button onClick={handleLogin} className="bg-violet-200 dark:bg-violet-600 text-white hover:bg-violet-300 dark:hover:bg-violet-500">

@@ -24,21 +24,46 @@ export default function OffersPage() {
     const [filterType, setFilterType] = useState<"all" | "discount" | "clearance">("all")
     const [loading, setLoading] = useState(true)
 
-    const userId = 1 // мок, потом подтягивать от юзера
+    const userId = 1 // мок
     const inCart: number[] = []
     const inWishlist: number[] = []
 
     useEffect(() => {
         const loadOffers = async () => {
+            console.group("📦 Загрузка предложений")
+
             try {
+                console.log("➡ Запрос: /offers")
                 const data = await fetchData<Offer[]>("/offers")
+                console.log(`✅ Получено предложений: ${data.length}`)
                 setOffers(data)
-            } catch (err) {
-                console.error(err)
+            } catch (err: any) {
+                console.error("🔥 Ошибка при загрузке предложений:")
+                console.error("Тип ошибки:", err?.name)
+                console.error("Сообщение:", err?.message)
+                console.error("Стек:", err?.stack)
+
+                if (err?.response) {
+                    console.error("Ответ сервера:", err.response)
+                    try {
+                        const text = await err.response.text()
+                        console.error("Тело ответа:", text)
+                    } catch (parseErr) {
+                        console.error("Ошибка при чтении тела ответа:", parseErr)
+                    }
+                }
+
+                console.table({
+                    URL: "/offers",
+                    Method: "GET",
+                    Time: new Date().toLocaleString(),
+                })
             } finally {
+                console.groupEnd()
                 setLoading(false)
             }
         }
+
         loadOffers()
     }, [])
 
@@ -47,10 +72,15 @@ export default function OffersPage() {
         else setFiltered(offers.filter(o => o.type === filterType))
     }, [filterType, offers])
 
-    if (loading) return <div className="min-h-screen flex items-center justify-center text-violet-600 text-xl">Загрузка предложений...</div>
+    if (loading)
+        return (
+            <div className="min-h-screen flex items-center justify-center text-violet-600 text-xl">
+                Загрузка предложений...
+            </div>
+        )
 
     return (
-        <div className="min-h-screen p-6 bg-violet-200">
+        <div className="min-h-screen p-6 bg-white">
             <h1 className="text-3xl font-bold text-gray-900 mb-6">Акции и предложения</h1>
 
             <div className="flex flex-wrap gap-2 mb-6">
@@ -84,17 +114,15 @@ export default function OffersPage() {
                     {filtered.map(o => (
                         <div key={o.id} className="relative">
                             {o.type === "clearance" && (
-                                <span className="absolute top-2 left-2 bg-red-600 text-white px-2 py-1 rounded text-sm z-10">Уценка</span>
+                                <span className="absolute top-2 left-2 bg-red-600 text-white px-2 py-1 rounded text-sm z-10">
+                                    Уценка
+                                </span>
                             )}
                             {o.type === "discount" && o.discountPercent && (
-                                <span className="absolute top-2 left-2 bg-green-600 text-white px-2 py-1 rounded text-sm z-10">{o.discountPercent}%</span>
+                                <span className="absolute top-2 left-2 bg-green-600 text-white px-2 py-1 rounded text-sm z-10">
+                                    {o.discountPercent}%
+                                </span>
                             )}
-                            <ProductCard
-                                product={o.product}
-                                userId={userId}
-                                inCart={inCart.includes(o.product.id)}
-                                inWishlist={inWishlist.includes(o.product.id)}
-                            />
                         </div>
                     ))}
                 </div>

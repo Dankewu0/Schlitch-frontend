@@ -1,167 +1,148 @@
 'use client';
 
 import { useEffect, useState } from "react";
-import { fetchData } from "@/lib/api";
-import { useRouter } from "next/navigation";
+import Cookies from "js-cookie";
 
-interface Product {
-    id: number;
-    name: string;
-    quantity: number;
-}
+interface Product { id: number; name: string; }
+interface CartItem { id: number; quantity: number; product: Product; }
+interface DeliveryDetails { address: string; city: string; postalCode: string; phone: string; }
 
-interface CartItem {
-    id: number;
-    quantity: number;
-    product: Product;
-}
-
-interface DeliverDetails {
-    address: string;
-    city: string;
-    postalCode: string;
-    phone: string;
-}
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export default function CartPage() {
-    const router = useRouter();
     const [cartItems, setCartItems] = useState<CartItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [placingOrder, setPlacingOrder] = useState(false);
-    const [delivery, setDelivery] = useState<DeliverDetails>({
-        address: "",
-        city: "",
-        postalCode: "",
-        phone: "",
-    });
+    const [delivery, setDelivery] = useState<DeliveryDetails>({ address: "", city: "", postalCode: "", phone: "" });
+
+    const log = (msg: string, extra?: any) => {
+        const timestamp = new Date().toISOString();
+        console.log(`[${timestamp}] ${msg}` + (extra ? ` | ${JSON.stringify(extra)}` : ""));
+    };
+
+    const fetchCSRF = async () => {
+        log("🟢 Запрос CSRF cookie начинается", { url: `${API_BASE_URL}/sanctum/csrf-cookie` });
+        const res = await fetch(`${API_BASE_URL}/sanctum/csrf-cookie`, { credentials: "include" });
+        log("✅ Ответ от /sanctum/csrf-cookie", { status: res.status });
+        return Cookies.get("XSRF-TOKEN") || "";
+    };
 
     const loadCart = async () => {
+        log("🟢 Загрузка корзины...");
         try {
-            const data = await fetchData<CartItem[]>("/cart");
-            setCartItems(data);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
+            const xsrf = await fetchCSRF();
+            const res = await fetch(`${API_BASE_URL}/cart`, { credentials: "include", headers: { "X-XSRF-TOKEN": xsrf } });
+            const data = await res.json().catch(() => null);
+            log("📨 Ответ от /cart", { status: res.status, body: data });
+            if (res.ok && Array.isArray(data)) setCartItems(data);
+        } catch (err) { log("🔥 Исключение loadCart", { message: (err as Error).message }); }
+        finally { setLoading(false); }
     };
 
     const removeItem = async (id: number) => {
+        log(`🟡 Удаление товара id=${id}...`);
         try {
-            await fetchData(`/cart/${id}`, { method: "DELETE" });
-            setCartItems(prev => prev.filter(item => item.id !== id));
-        } catch (err) {
-            console.error(err);
-        }
+            const xsrf = await fetchCSRF();
+            const res = await fetch(`${API_BASE_URL}/cart/${id}`, { method: "DELETE", credentials: "include", headers: { "X-XSRF-TOKEN": xsrf } });
+            const data = await res.json().catch(() => null);
+            log("📨 Ответ от DELETE /cart", { status: res.status, body: data });
+            if (res.ok) setCartItems(prev => prev.filter(item => item.id !== id));
+        } catch (err) { log("🔥 Ошибка removeItem", { message: (err as Error).message }); }
     };
 
     const updateQuantity = async (id: number, qty: number) => {
+        log(`🟡 Обновление количества товара id=${id} на ${qty}...`);
         try {
+            const xsrf = await fetchCSRF();
             const item = cartItems.find(i => i.id === id);
-            if (!item) return;
-            const updated = await fetchData<{ quantity: number } | null>("/cart", {
+            if (!item) return log("⚠ Товар не найден");
+            const res = await fetch(`${API_BASE_URL}/cart`, {
                 method: "POST",
-                body: JSON.stringify({ product_id: item.product.id, quantity: qty }),
+                credentials: "include",
+                headers: { "Content-Type": "application/json", "X-XSRF-TOKEN": xsrf },
+                body: JSON.stringify({ product_id: item.product.id, quantity: qty })
             });
-            if (!updated) return;
-            setCartItems(prev => prev.map(i => i.id === id ? { ...i, quantity: updated.quantity } : i));
-        } catch (err) {
-            console.error(err);
-        }
+            const data = await res.json().catch(() => null);
+            log("📨 Ответ от POST /cart", { status: res.status, body: data });
+            if (res.ok) setCartItems(prev => prev.map(i => i.id === id ? { ...i, quantity: qty } : i));
+        } catch (err) { log("🔥 Ошибка updateQuantity", { message: (err as Error).message }); }
     };
 
     const placeOrder = async () => {
-        if (!cartItems.length) return;
+        if (!cartItems.length) return log("⚠ Корзина пуста");
         setPlacingOrder(true);
+        log("🟢 Оформление заказа...");
         try {
-            const payload = {
-                items: cartItems.map(item => ({ product_id: item.product.id, quantity: item.quantity })),
-                delivery,
-            };
-            await fetchData("/orders", { method: "POST", body: JSON.stringify(payload) });
-            setCartItems([]);
-            router.push("/Profile");
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setPlacingOrder(false);
-        }
+            const xsrf = await fetchCSRF();
+            const res = await fetch(`${API_BASE_URL}/orders`, {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json", "X-XSRF-TOKEN": xsrf },
+                body: JSON.stringify({ items: cartItems.map(i => ({ product_id: i.product.id, quantity: i.quantity })), delivery })
+            });
+            const data = await res.json().catch(() => null);
+            log("📨 Ответ от POST /orders", { status: res.status, body: data });
+            if (res.ok) {
+                setCartItems([]);
+                alert("Все детали доставки будут отправлены по смс");
+            }
+        } catch (err) { log("🔥 Ошибка placeOrder", { message: (err as Error).message }); }
+        finally { setPlacingOrder(false); }
+    };
+
+    const sendDeliveryDetails = async () => {
+        log("🟢 Отправка деталей доставки...");
+        try {
+            const xsrf = await fetchCSRF();
+            const res = await fetch(`${API_BASE_URL}/deliver-details`, {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json", "X-XSRF-TOKEN": xsrf },
+                body: JSON.stringify(delivery)
+            });
+            const data = await res.json().catch(() => null);
+            log("📨 Ответ от POST /deliver-details", { status: res.status, body: data });
+            if (res.ok) {
+                placeOrder();
+            }
+        } catch (err) { log("🔥 Ошибка sendDeliveryDetails", { message: (err as Error).message }); }
     };
 
     useEffect(() => { loadCart(); }, []);
 
-    if (loading) return <div className="p-4 min-h-screen flex items-center justify-center text-violet-600 text-xl">Загрузка корзины...</div>;
-    if (!cartItems.length) return <div className="p-4 min-h-screen flex items-center justify-center text-gray-700">Корзина пуста</div>;
+    if (loading) return <div className="p-4 min-h-screen flex items-center justify-center text-violet-200 dark:text-violet-600 text-xl font-bold">Загрузка корзины...</div>;
 
     return (
-        <div className="p-4 max-w-4xl mx-auto flex flex-col gap-4 sm:gap-6">
-            <h1 className="text-2xl sm:text-3xl font-bold mb-4 text-gray-900 text-center sm:text-left">Корзина</h1>
-            <div className="flex flex-col gap-4">
-                {cartItems.map(item => (
-                    <div key={item.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-2 border-violet-600 p-3 sm:p-4 rounded-xl shadow-md bg-white">
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 w-full">
-                            <div className="font-semibold text-gray-900">{item.product.name}</div>
-                            <div className="flex items-center mt-1 sm:mt-0 text-gray-700">
-                                Количество:
-                                <input
-                                    type="number"
-                                    min={1}
-                                    value={item.quantity}
-                                    onChange={e => updateQuantity(item.id, parseInt(e.target.value))}
-                                    className="ml-2 border border-violet-200 rounded px-2 w-16 focus:outline-none focus:ring-2 focus:ring-violet-600"
-                                />
+        <div className="p-4 min-h-screen flex flex-col gap-6">
+            <div className="flex flex-col sm:flex-row gap-6 flex-1">
+                <div className="flex-1 flex flex-col gap-4">
+                    <h1 className="text-2xl font-bold mb-4 text-violet-200 dark:text-violet-600">Корзина</h1>
+                    {cartItems.length ? cartItems.map(item => (
+                        <div key={item.id} className="flex flex-col sm:flex-row justify-between items-center border-2 border-violet-600 p-3 rounded-xl shadow-md bg-white">
+                            <div className="flex-1 font-bold text-violet-200 dark:text-violet-600">{item.product.name}</div>
+                            <div className="flex items-center gap-2 mt-2 sm:mt-0">
+                                <input type="number" min={1} value={item.quantity} onChange={e => updateQuantity(item.id, parseInt(e.target.value))}
+                                       className="border border-violet-200 rounded px-2 py-1 w-20 shadow focus:outline-none focus:ring-2 focus:ring-violet-600 text-violet-200"/>
+                                <button onClick={() => removeItem(item.id)} className="bg-violet-600 text-white px-3 py-1 rounded hover:bg-violet-500 font-bold">Удалить</button>
                             </div>
                         </div>
-                        <button
-                            onClick={() => removeItem(item.id)}
-                            className="mt-2 sm:mt-0 bg-violet-600 text-white px-3 py-1 rounded hover:bg-violet-500 sm:ml-4"
-                        >
-                            Удалить
-                        </button>
-                    </div>
-                ))}
-            </div>
+                    )) : <div className="text-violet-200 dark:text-violet-600 font-bold">Корзина пуста</div>}
+                </div>
 
-            <div className="flex flex-col gap-4 mt-6 p-4 bg-violet-100 rounded-xl">
-                <h2 className="text-xl font-semibold text-gray-900">Детали доставки</h2>
-                <input
-                    type="text"
-                    placeholder="Адрес"
-                    value={delivery.address}
-                    onChange={e => setDelivery({...delivery, address: e.target.value})}
-                    className="border border-violet-200 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-violet-600"
-                />
-                <input
-                    type="text"
-                    placeholder="Город"
-                    value={delivery.city}
-                    onChange={e => setDelivery({...delivery, city: e.target.value})}
-                    className="border border-violet-200 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-violet-600"
-                />
-                <input
-                    type="text"
-                    placeholder="Почтовый индекс"
-                    value={delivery.postalCode}
-                    onChange={e => setDelivery({...delivery, postalCode: e.target.value})}
-                    className="border border-violet-200 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-violet-600"
-                />
-                <input
-                    type="text"
-                    placeholder="Телефон"
-                    value={delivery.phone}
-                    onChange={e => setDelivery({...delivery, phone: e.target.value})}
-                    className="border border-violet-200 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-violet-600"
-                />
-            </div>
-
-            <div className="mt-6 flex justify-center sm:justify-end">
-                <button
-                    onClick={placeOrder}
-                    disabled={placingOrder}
-                    className="bg-violet-600 text-white py-2 px-6 rounded-lg hover:bg-violet-500 shadow-md w-full sm:w-auto"
-                >
-                    {placingOrder ? "Оформление..." : "Оформить заказ"}
-                </button>
+                <div className="flex-1 flex flex-col gap-2 p-4 rounded-xl shadow-md bg-violet-200 dark:bg-violet-700 text-white ">
+                    <h2 className="text-xl font-bold mb-2">Детали доставки</h2>
+                    {["address", "city", "postalCode", "phone"].map((key) => (
+                        <input
+                            key={key}
+                            type="text"
+                            placeholder={key === "postalCode" ? "Почтовый индекс" : key === "phone" ? "Телефон" : key === "city" ? "Город" : "Адрес"}
+                            value={delivery[key as keyof DeliveryDetails]}
+                            onChange={e => setDelivery({...delivery, [key]: e.target.value})}
+                            className="w-full px-3 py-2 rounded shadow bg-white text-violet-300 focus:outline-none mb-2"
+                        />
+                    ))}
+                    <button onClick={sendDeliveryDetails} className="mt-2 bg-violet-200 dark:bg-violet-600 dark:hover:border-2 dark:hover:border-violet-700 dark:hover:bg-violet-700 text-white py-2 px-4 rounded hover:bg-violet-500 font-bold w-full sm:w-auto">Отправить детали</button>
+                </div>
             </div>
         </div>
     );
